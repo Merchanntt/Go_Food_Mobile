@@ -76,7 +76,6 @@ export const FoodsContainer = styled.View`
 `;
 
 export const FoodList = styled.View`
-  flex: 1;
   padding: 0 20px;
   margin-top: 16px;
 `;
@@ -99,8 +98,8 @@ export const FoodImageContainer = styled.View`
 `;
 
 export const FoodContent = styled.View`
-  flex: 1;
   padding: 16px;
+  flex: 1;
 `;
 
 export const FoodTitle = styled.Text`

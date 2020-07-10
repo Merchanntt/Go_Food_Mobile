@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useLayoutEffect,
 } from 'react';
-import { Image } from 'react-native';
+import { Image, Alert } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
@@ -56,6 +56,7 @@ interface Food {
   description: string;
   price: number;
   image_url: string;
+  thumbnail_url: string;
   formattedPrice: string;
   extras: Extra[];
 }
@@ -73,48 +74,128 @@ const FoodDetails: React.FC = () => {
 
   useEffect(() => {
     async function loadFood(): Promise<void> {
-      // Load a specific food with extras based on routeParams id
+      const { id } = routeParams;
+
+      const response = await api.get<Food>(`foods/${id}`);
+
+      setFood({
+        ...response.data,
+        formattedPrice: formatValue(response.data.price),
+      });
+
+      setExtras(
+        response.data.extras.map(extra => ({
+          ...extra,
+          quantity: 0,
+        })),
+      );
     }
 
     loadFood();
-  }, [routeParams]);
+  }, [routeParams, setFood]);
+
+  useEffect(() => {
+    api.get<Food[]>('favorites').then(({ data }) => {
+      data.forEach(favorite => {
+        if (favorite.name === food.name) {
+          setIsFavorite(true);
+        }
+      });
+    });
+  }, [food.name]);
 
   function handleIncrementExtra(id: number): void {
-    // Increment extra quantity
+    setExtras(OldExtras =>
+      OldExtras.map(extra =>
+        extra.id === id ? { ...extra, quantity: extra.quantity + 1 } : extra,
+      ),
+    );
   }
 
   function handleDecrementExtra(id: number): void {
-    // Decrement extra quantity
+    const haveExtras = extras.find(item => item.id === id);
+    if (haveExtras?.quantity === 0) return;
+
+    setExtras(OldExtras =>
+      OldExtras.map(extra =>
+        extra.id === id ? { ...extra, quantity: extra.quantity - 1 } : extra,
+      ),
+    );
   }
 
   function handleIncrementFood(): void {
-    // Increment food quantity
+    setFoodQuantity(oldQuantity => oldQuantity + 1);
   }
 
   function handleDecrementFood(): void {
-    // Decrement food quantity
+    if (foodQuantity === 1) {
+      return;
+    }
+    setFoodQuantity(oldQuantity => oldQuantity - 1);
   }
 
-  const toggleFavorite = useCallback(() => {
-    // Toggle if food is favorite or not
-  }, [isFavorite, food]);
+  const toggleFavorite = useCallback(async () => {
+    try {
+      if (isFavorite) {
+        await api.delete(`favorites/${routeParams.id}`);
+      } else {
+        const newFavorite = {
+          id: food.id,
+          name: food.name,
+          description: food.description,
+          price: food.price,
+          image_url: food.image_url,
+          thumbnail_url: food.thumbnail_url,
+          extras: food.extras,
+        };
+
+        await api.post('favorites', newFavorite);
+      }
+    } catch (err) {
+      Alert.alert('Erro ao favoritar prato');
+    }
+
+    setIsFavorite(!isFavorite);
+  }, [isFavorite, food, routeParams.id]);
 
   const cartTotal = useMemo(() => {
-    // Calculate cartTotal
+    const totalExtras = extras.reduce((total, next) => {
+      return total + next.value * next.quantity;
+    }, 0);
+
+    const totalPrice = foodQuantity * food.price + totalExtras;
+
+    return formatValue(totalPrice);
   }, [extras, food, foodQuantity]);
 
   async function handleFinishOrder(): Promise<void> {
-    // Finish the order and save on the API
+    const newOrder = {
+      product_id: food.id,
+      name: food.name,
+      description: food.description,
+      price: food.price,
+      image_url: food.image_url,
+      thumbnail_url: food.thumbnail_url,
+      foodQuantity,
+      extras: extras.filter(extra => extra.quantity > 0),
+      total: cartTotal,
+    };
+
+    try {
+      await api.post('orders', newOrder);
+
+      navigation.navigate('Orders');
+    } catch (err) {
+      Alert.alert('Erro ao efetuar pedido');
+    }
   }
 
-  // Calculate the correct icon name
   const favoriteIconName = useMemo(
     () => (isFavorite ? 'favorite' : 'favorite-border'),
     [isFavorite],
   );
 
   useLayoutEffect(() => {
-    // Add the favorite icon on the right of the header bar
     navigation.setOptions({
       headerRight: () => (
         <MaterialIcon

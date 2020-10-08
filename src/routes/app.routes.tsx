@@ -7,6 +7,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import TabRoutes from './tab.routes';
 
 import Home from '../pages/Home';
+import OrderDetails from '../pages/OrdersDetails';
 import FoodDetails from '../pages/FoodDetails';
 
 const App = createStackNavigator();
@@ -30,6 +31,7 @@ const AppRoutes: React.FC = () => (
           gestureEnabled: false,
         }}
       />
+
       <App.Screen
         name="FoodDetails"
         component={FoodDetails}
